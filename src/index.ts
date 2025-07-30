@@ -35,6 +35,7 @@ import {
   DepthOfFieldEffect,
   BloomEffect,
   HueSaturationEffect,
+  FXAAEffect,
 } from "postprocessing";
 
 const isDebug = false;
@@ -54,14 +55,14 @@ const renderer = new WebGLRenderer({
   powerPreference: "high-performance",
   antialias: false,
   stencil: false,
-  depth: false,
+  depth: true,
 });
 
 renderer.outputColorSpace = SRGBColorSpace;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = PCFSoftShadowMap;
 
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 const camera = new PerspectiveCamera(
   75,
@@ -124,11 +125,23 @@ const hueSaturationEffect = new HueSaturationEffect({
   saturation: 0,
 });
 
+const fxaaEffect = new FXAAEffect();
+
+const pixelRatio = Math.min(window.devicePixelRatio, 2);
+const resolutionUniform = fxaaEffect.uniforms.get("resolution");
+if (resolutionUniform) {
+  resolutionUniform.value.set(
+    1 / (window.innerWidth * pixelRatio),
+    1 / (window.innerHeight * pixelRatio)
+  );
+}
+
 const effectPass = new EffectPass(
   camera,
   blurEffect,
   bloomEffect,
-  hueSaturationEffect
+  hueSaturationEffect,
+  fxaaEffect
 );
 composer.addPass(effectPass);
 
@@ -248,11 +261,20 @@ function updateBackgroundColor() {
 }
 
 function resize() {
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  const pixelRatio = Math.min(window.devicePixelRatio, 2);
+  renderer.setPixelRatio(pixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   composer.setSize(window.innerWidth, window.innerHeight);
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
+
+  const resolutionUniform = fxaaEffect.uniforms.get("resolution");
+  if (resolutionUniform) {
+    resolutionUniform.value.set(
+      1 / (window.innerWidth * pixelRatio),
+      1 / (window.innerHeight * pixelRatio)
+    );
+  }
 }
 
 resize();
