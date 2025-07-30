@@ -1,17 +1,19 @@
-# WebGL Homework 02 - 3D Model Scene with Lighting and Shadows
+# WebGL Homework 03 - Interactive 3D Scene with Post-Processing
 
 ## 📹 Demo Video
 
-[![Watch the video](/public/images/remy.png)](https://www.loom.com/share/7f197eda5eca4354ae6a3a4083a871a3?sid=c37501ec-b3ea-40bc-b269-b9f720a29dac)
+[![Watch the video](/public/images/hand.png)](https://www.loom.com/share/56fc139634b34998807de1084144dd50)
 
 ## 📋 Summary
 
-This project implements a complete Three.js scene with 3D model loading, advanced lighting, and optimized shadows for the WebGL homework assignment:
+This project implements an interactive Three.js scene with post-processing effects and advanced lighting for the WebGL homework assignment:
 
-- **Clean working scene** with all previous requirements from Homework 01
-- **3D Model Loading** - GLB model (Remy character)
-- **Advanced Lighting Setup** - Ambient and directional lighting for realistic illumination
-- **Optimized Shadow System** - PCF soft shadows with high-resolution shadow mapping
+- **Interactive 3D Scene** - Click/touch the hand to trigger visual effects and animations
+- **3D Model Loading** - Animated hand model with grab animations
+- **HDR Environment Lighting** - Realistic lighting using HDR environment maps
+- **Advanced Post-Processing** - Depth of field, bloom, and hue/saturation effects that respond to interactions
+- **Optimized Shadow System** - PCF soft shadows with proper shadow mapping
+- **Performance Monitoring** - Stats.js integration for performance tracking
 
 ## 🚀 How to Run
 
@@ -25,8 +27,8 @@ This project implements a complete Three.js scene with 3D model loading, advance
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/fdgbatarse1/webgl-02.git
-   cd webgl-02
+   git clone https://github.com/fdgbatarse1/webgl-03.git
+   cd webgl-03
    ```
 
 2. **Install dependencies**
@@ -43,13 +45,10 @@ This project implements a complete Three.js scene with 3D model loading, advance
 
 4. **Open your browser**
    - Navigate to `http://localhost:5173` (or the URL shown in your terminal)
-   - You should see an animated 3D character model (Remy from Ratatouille) with realistic lighting and shadows on a brown floor
+   - You should see an animated hand model with realistic HDR lighting and post-processing effects
+   - Click or touch the hand to trigger interactive visual effects and damage mechanics
 
 ## 🔗 Links
 
-- **Repository**: https://github.com/fdgbatarse1/webgl-02
-- **Live Demo**: https://webgl-02.vercel.app/
-
-## 🅭 Credits
-
-"Remy (Ratatouille)" (https://skfb.ly/oFpXo) by Guilherme Navarro is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
+- **Repository**: https://github.com/fdgbatarse1/webgl-03
+- **Live Demo**: https://webgl-03.vercel.app/
