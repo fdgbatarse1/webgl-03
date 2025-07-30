@@ -23,12 +23,25 @@ import {
   Texture,
   WebGLRenderer,
   PMREMGenerator,
+  MeshPhysicalMaterial,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTF, GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+import {
+  EffectComposer,
+  RenderPass,
+  EffectPass,
+  DepthOfFieldEffect,
+  BloomEffect,
+  HueSaturationEffect,
+} from "postprocessing";
 
 const isDebug = false;
+
+const maxLife = 7 + Math.floor(Math.random() * 4);
+let currentLife = maxLife;
+let isDead = false;
 
 const stats = new Stats();
 document.body.appendChild(stats.dom);
@@ -38,11 +51,17 @@ const pmremLoader = new RGBELoader();
 
 const renderer = new WebGLRenderer({
   canvas: document.querySelector("#canvas") as HTMLCanvasElement,
+  powerPreference: "high-performance",
+  antialias: false,
+  stencil: false,
+  depth: false,
 });
 
 renderer.outputColorSpace = SRGBColorSpace;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = PCFSoftShadowMap;
+
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 
 const camera = new PerspectiveCamera(
   75,
@@ -85,6 +104,34 @@ if (isDebug) {
   scene.add(directionalLightHelper);
 }
 
+const composer = new EffectComposer(renderer);
+const renderPass = new RenderPass(scene, camera);
+composer.addPass(renderPass);
+
+const blurEffect = new DepthOfFieldEffect(camera, {
+  focusDistance: 0.02,
+  focalLength: 0.2,
+  bokehScale: 2,
+});
+
+const bloomEffect = new BloomEffect({
+  intensity: 1.2,
+  luminanceThreshold: 0.7,
+});
+
+const hueSaturationEffect = new HueSaturationEffect({
+  hue: 0,
+  saturation: 0,
+});
+
+const effectPass = new EffectPass(
+  camera,
+  blurEffect,
+  bloomEffect,
+  hueSaturationEffect
+);
+composer.addPass(effectPass);
+
 const geometry = new CircleGeometry(1.5, 64);
 const material = new MeshStandardMaterial({ color: 0xf5f5f5 });
 material.side = FrontSide;
@@ -95,6 +142,12 @@ scene.add(floor);
 
 let hand: GLTF;
 let animationMixer: AnimationMixer;
+
+const originalBgColor = new Color(0x121212);
+const bloodColor = new Color(0x2a0808);
+
+let handFallVelocity = 0;
+const gravity = -0.02;
 
 const clock = new Clock();
 const pmrem = new PMREMGenerator(renderer);
@@ -123,13 +176,20 @@ Promise.all([
     hand.scene.position.set(0, 1, 0.75);
     animationMixer = new AnimationMixer(hand.scene);
 
+    scene.environment = env;
+
     hand.scene.traverse((obj: Object3D) => {
       if (obj instanceof Mesh) {
         obj.castShadow = true;
-        obj.material.side = FrontSide;
-        obj.material.envMap = env;
-        obj.material.envMapIntensity = 0.3;
-        obj.material.needsUpdate = true;
+
+        if (
+          obj.material instanceof MeshStandardMaterial ||
+          obj.material instanceof MeshPhysicalMaterial
+        ) {
+          obj.material.envMap = env;
+          obj.material.envMapIntensity = 0.15;
+          obj.material.needsUpdate = true;
+        }
       }
     });
 
@@ -142,10 +202,15 @@ Promise.all([
     grabAction.play();
 
     floor.material.envMap = env;
-    floor.material.envMapIntensity = 0.35;
+    floor.material.envMapIntensity = 0.2;
     floor.material.roughness = 0.9;
     floor.material.metalness = 0.0;
     floor.material.needsUpdate = true;
+
+    const canvas = renderer.domElement;
+    canvas.addEventListener("click", handleHit);
+    canvas.addEventListener("touchend", handleHit);
+    canvas.style.cursor = "pointer";
   })
   .catch(console.error);
 
@@ -153,9 +218,39 @@ if (isDebug) {
   scene.add(new AxesHelper(10));
 }
 
+function handleHit(event: Event) {
+  if (isDead) return;
+
+  event.preventDefault();
+
+  currentLife--;
+
+  updateBackgroundColor();
+
+  if (currentLife <= 0) {
+    isDead = true;
+    if (animationMixer) {
+      animationMixer.stopAllAction();
+    }
+  }
+}
+
+function updateBackgroundColor() {
+  const t = (maxLife - currentLife) / maxLife;
+  const newColor = originalBgColor.clone().lerp(bloodColor, t * 0.6);
+  scene.background = newColor;
+
+  const intensity = t;
+  blurEffect.bokehScale = 2 + intensity * 8;
+  bloomEffect.intensity = 1.2 + intensity * 3.0;
+  hueSaturationEffect.hue = intensity * -0.3;
+  hueSaturationEffect.saturation = intensity * 0.4;
+}
+
 function resize() {
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
 }
@@ -169,11 +264,23 @@ function animate() {
 
   const deltaTime = clock.getDelta();
 
-  if (animationMixer) {
+  if (animationMixer && !isDead && currentLife > 0) {
     animationMixer.update(deltaTime);
   }
 
-  renderer.render(scene, camera);
+  if (isDead && hand) {
+    handFallVelocity += gravity;
+    hand.scene.position.y += handFallVelocity;
+
+    if (hand.scene.position.y <= 0.5) {
+      hand.scene.position.y = 0.3;
+      hand.scene.rotation.z = (Math.PI * 20) / 90;
+      hand.scene.rotation.x = (Math.PI * 40) / 90;
+      handFallVelocity = 0;
+    }
+  }
+
+  composer.render();
 
   stats.end();
 
